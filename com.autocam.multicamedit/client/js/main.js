@@ -662,6 +662,16 @@
                         log('info', 'Cut reasons: ' + reasons.join(', '));
                     }
 
+                    // Diagnostic: cutaway breakdown
+                    var reactionCount = (a.reasonCounts && a.reasonCounts.reaction_cutaway) || 0;
+                    var wideCount = (a.reasonCounts && a.reasonCounts.wide_cutaway) || 0;
+                    var cutawayReturnCount = (a.reasonCounts && a.reasonCounts.cutaway_return) || 0;
+                    if (reactionCount === 0 && wideCount === 0) {
+                        log('warning', 'NO cutaway cuts generated! Check Wide Freq% slider (set to 20%+) and Wide Shot Camera Track dropdown.');
+                    } else {
+                        log('success', 'Cutaways: ' + reactionCount + ' to other speaker, ' + wideCount + ' to wide, ' + cutawayReturnCount + ' returns');
+                    }
+
                     log('info', 'Tempo zones - FAST:' + a.tempoZoneCounts.FAST +
                         ' NORMAL:' + a.tempoZoneCounts.NORMAL +
                         ' CALM:' + a.tempoZoneCounts.CALM);
@@ -760,12 +770,16 @@
                     overlapCount++;
                     break;
                 case 'cutaway_return':
-                    tdReason.className = 'reason-speaker-switch';
+                    tdReason.className = 'reason-cutaway-return';
                     cutawayCount++;
                     break;
                 case 'wide_cutaway':
                     tdReason.className = 'reason-monologue-variation';
                     wideCount++;
+                    break;
+                case 'reaction_cutaway':
+                    tdReason.className = 'reason-reaction-cutaway';
+                    cutawayCount++;
                     break;
                 case 'reaction_wide':
                     tdReason.className = 'reason-overlap-wide';
@@ -1152,6 +1166,17 @@
                 }
 
                 log('success', 'Working on clone: "' + dupData.sequenceName + '"');
+
+                // Verify clone is actually active (not still on original)
+                if (!dupData.cloneFound || dupData.sequenceName === dupData.originalName) {
+                    log('error', 'Clone did not activate. Ripple delete aborted to protect original.');
+                    log('info', 'Tip: Try opening the "_AUTO_EDIT" sequence manually then re-run.');
+                    btn.disabled = false;
+                    btn.textContent = 'Remove Silence Gaps';
+                    showProgress(false);
+                    return;
+                }
+
                 updateProgress(15, 'Clone ready. Starting ripple delete...');
             } catch (e) {
                 log('error', 'Failed to parse duplication result: ' + e.message);
@@ -1168,7 +1193,8 @@
 
             var escapedGaps = escapeForEvalScript(JSON.stringify(gapsToRemove));
 
-            updateProgress(20, 'Removing ' + gapsToRemove.length + ' silence gaps...');
+            updateProgress(20, 'Removing ' + gapsToRemove.length + ' gaps (may take ~'
+                + Math.ceil(gapsToRemove.length * 0.2) + 's)...');
 
             csInterface.evalScript(
                 '$._autocam_.rippleDeleteSilence(' + escapedGaps + ')',

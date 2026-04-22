@@ -558,7 +558,20 @@ $._autocam_.rippleDeleteSilence = function (gapsJsonStr) {
             return JSON.stringify({ error: 'No active sequence.' });
         }
 
-        $.writeln('[AutoCam] Processing ' + gaps.length + ' silence gaps on: ' + seq.name);
+        $.writeln('[AutoCam] Active sequence for ripple: ' + seq.name);
+        $.writeln('[AutoCam] Processing ' + gaps.length + ' silence gaps');
+
+        // Probe test: verify extractWorkArea is available
+        var testSupported = true;
+        try {
+            if (typeof seq.extractWorkArea !== 'function') testSupported = false;
+        } catch(e) { testSupported = false; }
+        if (!testSupported) {
+            return JSON.stringify({
+                error: 'seq.extractWorkArea not available in this Premiere version.',
+                sequenceName: seq.name
+            });
+        }
 
         // Sort gaps by paddedStart in REVERSE order (latest first)
         // Critical: prevents cascade position shifts
@@ -624,7 +637,6 @@ $._autocam_.rippleDeleteSilence = function (gapsJsonStr) {
                 // Extract work area (ripple delete)
                 // extractWorkArea(true) = extract with ripple (closes gap)
                 // extractWorkArea(false) = lift (leaves gap)
-                // Note: Some versions may use different signatures
                 try {
                     seq.extractWorkArea(true);
                     removed++;
@@ -640,15 +652,19 @@ $._autocam_.rippleDeleteSilence = function (gapsJsonStr) {
                             // QE may support different extraction methods
                             // This is a best-effort fallback
                             skipped++;
+                            var msg = 'Gap at ' + gapStart.toFixed(2) + 's: extractWorkArea not available, skipped';
                             if (errors.length < 10) {
-                                errors.push('Gap at ' + gapStart.toFixed(2) + 's: extractWorkArea not available, skipped');
+                                errors.push(msg);
                             }
+                            $.writeln('[AutoCam]   ' + msg);
                         }
                     } catch (qeErr) {
                         skipped++;
+                        var qeMsg = 'Gap at ' + gapStart.toFixed(2) + 's: ' + extractErr.message;
                         if (errors.length < 10) {
-                            errors.push('Gap at ' + gapStart.toFixed(2) + 's: ' + extractErr.message);
+                            errors.push(qeMsg);
                         }
+                        $.writeln('[AutoCam]   ' + qeMsg);
                     }
                 }
 
@@ -657,9 +673,11 @@ $._autocam_.rippleDeleteSilence = function (gapsJsonStr) {
 
             } catch (gapErr) {
                 skipped++;
+                var gapMsg = 'Gap ' + g + ': ' + gapErr.message;
                 if (errors.length < 10) {
-                    errors.push('Gap ' + g + ': ' + gapErr.message);
+                    errors.push(gapMsg);
                 }
+                $.writeln('[AutoCam]   ' + gapMsg);
             }
         }
 

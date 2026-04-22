@@ -951,6 +951,27 @@
             trackAvgRms.push(countAboveNoise > 0 ? sumAboveNoise / countAboveNoise : -40);
         }
 
+        // Helper inside runConversationEngine(): build cutaway targets for a given speaker
+        function buildCutawayPool(activeSpeaker) {
+            var targets = [];
+            // Add other speakers' primary close-ups
+            for (var sp in speakerWeights) {
+                if (sp != activeSpeaker && speakerWeights.hasOwnProperty(sp)) {
+                    var primary = speakerWeights[sp][0];
+                    if (primary) targets.push(primary.cameraIndex);
+                }
+            }
+            // Add wide shot
+            if (wideShotTrack >= 0) {
+                var hasWide = false;
+                for (var t = 0; t < targets.length; t++) {
+                    if (targets[t] === wideShotTrack) { hasWide = true; break; }
+                }
+                if (!hasWide) targets.push(wideShotTrack);
+            }
+            return targets;
+        }
+
         // Phase D: State machine with inertia
         var cuts = [];
         var currentSpeaker = -1;
@@ -961,6 +982,9 @@
         var sameSpeakerSince = 0; // For monologue detection
         var lastMonologueBreak = -Infinity;
         var lastCutCamera = -1;  // Track camera of most recent cut (same-camera guard)
+        var lastCutawayType = ''; // 'reaction_cutaway' | 'wide_cutaway' | ''
+        var reactionCutawayActive = false; // True when holding on a reaction shot
+        var reactionCutawayStartWindow = -1; // Window index where reaction cutaway began
 
         // Find initial speaker (first non-silence, non-reaction)
         for (var iw = 0; iw < conversationStates.length; iw++) {
@@ -998,9 +1022,9 @@
             var effectiveMinShot = tempoParams.minShot;
             var timeSinceLastCut = currentTimeSec - lastCutTimeSec;
 
-            // --- REACTION CUTAWAY: Auto-return to active speaker ---
-            // If the current camera shows a non-active-speaker's camera, check timeout
-            // After cutawayDurationSec (0.5-1s), force return to the active speaker's close-up
+            // --- CUTAWAY RETURN: Smart return to active speaker ---
+            // For reaction_cutaway: hold until speaker naturally pauses (human "nod cut")
+            // For wide_cutaway: use jittered timer return (wide is neutral)
             if (currentSpeaker >= 0 && lastCutCamera >= 0 && cs.state === 'SPEAKING' &&
                 cs.speakerTrack === currentSpeaker) {
                 // Check if lastCutCamera belongs to the active speaker's pool
@@ -1014,18 +1038,37 @@
                         }
                     }
                 }
-                // Wide shot is "neutral" — not a wrong-speaker camera
-                // But we still want to return from wide after the cutaway duration
                 var isOnWide = (lastCutCamera === wideShotTrack && wideShotTrack >= 0);
 
-                if ((!cameraMatchesSpeaker || isOnWide) && timeSinceLastCut >= cutawayDurationSec) {
-                    // We've been on a non-speaker or wide camera too long — return to active speaker
+                var shouldReturn = false;
+
+                if (reactionCutawayActive && lastCutawayType === 'reaction_cutaway') {
+                    // HUMAN EDIT: Hold reaction shot until speaker pauses or max 3s
+                    var maxHoldWindows = 60; // 3 seconds at 50ms
+                    var holdExceeded = (mw - reactionCutawayStartWindow) >= maxHoldWindows;
+                    // Detect natural pause: speaker goes SILENCE (at least 150ms = 3 windows)
+                    var speakerPaused = false;
+                    if (!holdExceeded) {
+                        var silenceRun = 0;
+                        for (var sw = mw; sw < Math.min(conversationStates.length, mw + 4); sw++) {
+                            if (conversationStates[sw].state === 'SILENCE') silenceRun++;
+                        }
+                        speakerPaused = (silenceRun >= 3);
+                    }
+                    shouldReturn = speakerPaused || holdExceeded;
+                } else if (!cameraMatchesSpeaker || isOnWide) {
+                    // Timer-based return for wide shot and other non-reaction cutaways
+                    var jitteredReturnDuration = cutawayDurationSec *
+                        (0.7 + ((mw * 13) % 100) / 100 * 0.6);
+                    shouldReturn = timeSinceLastCut >= jitteredReturnDuration;
+                }
+
+                if (shouldReturn) {
                     var returnCamera;
                     if (spkPool && spkPool.length > 0) {
-                        // Pick the primary close-up (first entry = highest weight)
                         returnCamera = spkPool[0].cameraIndex;
                     } else {
-                        returnCamera = currentSpeaker; // Fallback: direct mapping
+                        returnCamera = currentSpeaker;
                     }
 
                     if (returnCamera !== lastCutCamera) {
@@ -1038,6 +1081,8 @@
                         lastCutTimeSec = currentTimeSec;
                         cameraHistory.push(returnCamera);
                         if (cameraHistory.length > 6) cameraHistory.shift();
+                        reactionCutawayActive = false;
+                        lastCutawayType = '';
                         continue;
                     }
                 }
@@ -1054,29 +1099,125 @@
                 effectiveMinShot = effectiveMinShot * 1.5; // Hold 50% longer during power moments
             }
 
-            // --- PERIODIC WIDE CUTAWAY during sustained speech ---
-            // Brief wide shot every wideCutawayInterval seconds (controlled by Wide Freq% slider)
-            // The Reaction Cutaway return (above) will bring us back after cutawayDurationSec
+            // --- EMOTIONAL ARC CUTAWAY: React to impactful statement endings ---
+            // Human editors cut to reaction right after a powerful statement ends.
+            // Detect: speaker was above-average energy, then RMS drops sharply
+            // followed by brief silence — the "punchline moment".
             if (currentSpeaker >= 0 && cs.speakerTrack === currentSpeaker &&
-                cs.state === 'SPEAKING' && wideShotTrack >= 0 && !isHighEnergy) {
+                cs.state === 'SPEAKING' && !reactionCutawayActive &&
+                timeSinceLastCut >= effectiveMinShot * 0.5) {
+
+                var recentRms = computeLocalRms(rmsSmoothed, currentSpeaker, mw - 5, 10);
+                var olderRms = computeLocalRms(rmsSmoothed, currentSpeaker, mw - 20, 10);
+                var wasHighEnergy = olderRms > trackAvgRms[currentSpeaker] + 4;
+                var isDropping = (recentRms - olderRms) < -3;
+
+                if (wasHighEnergy && isDropping) {
+                    // Confirm statement ended: silence ahead within next 500ms
+                    var silenceAhead = 0;
+                    for (var sa = mw; sa < Math.min(mw + 10, conversationStates.length); sa++) {
+                        if (conversationStates[sa].state === 'SILENCE') silenceAhead++;
+                    }
+                    if (silenceAhead >= 2) {
+                        // TRIGGER: Immediate reaction cutaway (not timer-based)
+                        var arcPool = buildCutawayPool(currentSpeaker);
+                        var arcValid = [];
+                        for (var at = 0; at < arcPool.length; at++) {
+                            if (arcPool[at] !== lastCutCamera) arcValid.push(arcPool[at]);
+                        }
+                        if (arcValid.length > 0) {
+                            // Bias toward other-speaker reaction (70%) vs wide (30%)
+                            var arcPick = arcValid[Math.floor(Math.random() * arcValid.length)];
+                            var hasNonWide = false;
+                            for (var an = 0; an < arcValid.length; an++) {
+                                if (arcValid[an] !== wideShotTrack) { hasNonWide = true; break; }
+                            }
+                            if (hasNonWide && Math.random() < 0.7) {
+                                var nonWideArc = [];
+                                for (var av = 0; av < arcValid.length; av++) {
+                                    if (arcValid[av] !== wideShotTrack) nonWideArc.push(arcValid[av]);
+                                }
+                                arcPick = nonWideArc[Math.floor(Math.random() * nonWideArc.length)];
+                            }
+                            var arcReason = arcPick === wideShotTrack ? 'wide_cutaway' : 'reaction_cutaway';
+                            cuts.push({
+                                timeSeconds: Math.max(0, currentTimeSec - prerollSec),
+                                cameraIndex: arcPick,
+                                reason: arcReason
+                            });
+                            cameraHistory.push(arcPick);
+                            if (cameraHistory.length > 6) cameraHistory.shift();
+                            lastCutCamera = arcPick;
+                            lastCutTimeSec = currentTimeSec;
+                            lastMonologueBreak = currentTimeSec;
+                            lastCutawayType = arcReason;
+                            if (arcReason === 'reaction_cutaway') {
+                                reactionCutawayActive = true;
+                                reactionCutawayStartWindow = mw;
+                            }
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            // --- REACTION CUTAWAY during sustained speech (rotates through all available cameras) ---
+            if (currentSpeaker >= 0 && cs.speakerTrack === currentSpeaker &&
+                cs.state === 'SPEAKING' && !isHighEnergy && !reactionCutawayActive) {
                 var sameSpeakerDur = currentTimeSec - sameSpeakerSince;
                 var timeSinceMonoBreak = currentTimeSec - lastMonologueBreak;
-                if (sameSpeakerDur > wideCutawayInterval &&
-                    timeSinceMonoBreak > wideCutawayInterval &&
-                    timeSinceLastCut >= effectiveMinShot &&
-                    lastCutCamera !== wideShotTrack) {
-                    cuts.push({
-                        timeSeconds: Math.max(0, currentTimeSec - prerollSec),
-                        cameraIndex: wideShotTrack,
-                        reason: 'wide_cutaway'
-                    });
-                    cameraHistory.push(wideShotTrack);
-                    if (cameraHistory.length > 6) cameraHistory.shift();
-                    lastCutCamera = wideShotTrack;
-                    lastCutTimeSec = currentTimeSec;
-                    lastMonologueBreak = currentTimeSec;
-                    // DON'T reset sameSpeakerSince — the monologue continues
-                    continue;
+
+                // Jittered interval: base ± 30% randomness
+                var jitteredInterval = wideCutawayInterval * (0.7 + Math.random() * 0.6);
+
+                if (sameSpeakerDur > jitteredInterval &&
+                    timeSinceMonoBreak > jitteredInterval &&
+                    timeSinceLastCut >= effectiveMinShot) {
+
+                    var cutawayPool = buildCutawayPool(currentSpeaker);
+                    // Filter: don't pick lastCutCamera (avoid same-camera cut)
+                    var validTargets = [];
+                    for (var ct = 0; ct < cutawayPool.length; ct++) {
+                        if (cutawayPool[ct] !== lastCutCamera) validTargets.push(cutawayPool[ct]);
+                    }
+                    if (validTargets.length > 0) {
+                        // Randomize: slight bias toward wide (40%) vs other speaker (60%)
+                        var pickTarget;
+                        var wideIdxInPool = -1;
+                        for (var vi = 0; vi < validTargets.length; vi++) {
+                            if (validTargets[vi] === wideShotTrack) { wideIdxInPool = vi; break; }
+                        }
+                        if (wideIdxInPool >= 0 && Math.random() < 0.4) {
+                            pickTarget = wideShotTrack;
+                        } else {
+                            // Pick a random non-wide target, or wide if it's the only one
+                            var nonWide = [];
+                            for (var vw = 0; vw < validTargets.length; vw++) {
+                                if (validTargets[vw] !== wideShotTrack) nonWide.push(validTargets[vw]);
+                            }
+                            pickTarget = nonWide.length > 0
+                                ? nonWide[Math.floor(Math.random() * nonWide.length)]
+                                : validTargets[0];
+                        }
+
+                        var cutReason = pickTarget === wideShotTrack ? 'wide_cutaway' : 'reaction_cutaway';
+                        cuts.push({
+                            timeSeconds: Math.max(0, currentTimeSec - prerollSec),
+                            cameraIndex: pickTarget,
+                            reason: cutReason
+                        });
+                        cameraHistory.push(pickTarget);
+                        if (cameraHistory.length > 6) cameraHistory.shift();
+                        lastCutCamera = pickTarget;
+                        lastCutTimeSec = currentTimeSec;
+                        lastMonologueBreak = currentTimeSec;
+                        lastCutawayType = cutReason;
+                        if (cutReason === 'reaction_cutaway') {
+                            reactionCutawayActive = true;
+                            reactionCutawayStartWindow = mw;
+                        }
+                        continue;
+                    }
                 }
             }
 
@@ -1335,8 +1476,29 @@
                 // Same pending candidate — check inertia
                 var heldWindows = mw - pendingStartWindow;
 
-                if (heldWindows >= inertiaWindows) {
-                    // Inertia confirmed. Now check ALL core cut rules:
+                // ANTICIPATION CUT: Read RMS trend to predict speaker change
+                // Human editors cut just BEFORE the new speaker starts — no dead air
+                var anticipationTriggered = false;
+                if (detectedSpeaker >= 0 && detectedSpeaker !== currentSpeaker &&
+                    heldWindows >= 2 && heldWindows < inertiaWindows) {
+                    var pendingTrend = 0, curTrend = 0, trendCount = 0;
+                    var tStart = Math.max(0, mw - 6);
+                    for (var rtw = tStart; rtw <= mw; rtw++) {
+                        if (rmsSmoothed[detectedSpeaker] && rmsSmoothed[currentSpeaker]) {
+                            pendingTrend += rmsSmoothed[detectedSpeaker][rtw] || -100;
+                            curTrend += rmsSmoothed[currentSpeaker][rtw] || -100;
+                            trendCount++;
+                        }
+                    }
+                    if (trendCount > 0) {
+                        // Pending speaker is audibly rising above current speaker
+                        anticipationTriggered = (pendingTrend / trendCount) >
+                            (curTrend / trendCount) * 1.12;
+                    }
+                }
+
+                if (heldWindows >= inertiaWindows || anticipationTriggered) {
+                    // Inertia confirmed (or anticipation triggered). Now check ALL core cut rules:
 
                     // Rule 1+3: New speaker duration > 1.2s
                     var speakerSeg = findActiveSegment(segments[detectedSpeaker], currentTimeSec);

@@ -564,6 +564,8 @@ select:hover, input[type="number"]:hover {
 .reason-monologue-variation { color: var(--purple); }
 .reason-overlap-wide { color: var(--warning); }
 .reason-overlap-dominant { color: var(--orange); }
+.reason-reaction-cutaway { color: var(--accent); }
+.reason-cutaway-return { color: #4ec9b0; }
 
 /* Legacy reasons (kept for backwards compat) */
 .reason-solo { color: var(--success); }
