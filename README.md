@@ -1,4 +1,4 @@
-# Auto Multi-Cam Edit
+# Auto Multi-Cam Edit (Nexus)
 
 An Adobe Premiere Pro CEP extension that automatically edits multi-camera podcast/interview footage by analyzing mic audio and switching between cameras based on who's speaking.
 
