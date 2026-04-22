@@ -1,0 +1,29 @@
+# Claude AI assistant workspace
+.claude/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.lnk
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node
+node_modules/
+npm-debug.log
+package-lock.json
+
+# Temporary / build artifacts
+*.log
+*.tmp
+*.bak
+*.old
+
+# CEP debug artifacts (keep .debug config file, ignore runtime outputs)
+# Adobe CEP cache

@@ -1,0 +1,637 @@
+/* Auto Multi-Cam Edit - Premiere Pro Panel Styles */
+/* Dark theme matching Premiere Pro UI */
+
+:root {
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #3a3a3a;
+    --bg-hover: #454545;
+    --text-primary: #d4d4d4;
+    --text-secondary: #999999;
+    --text-muted: #666666;
+    --accent: #3399ff;
+    --accent-hover: #55aaff;
+    --accent-dark: #2277dd;
+    --border: #404040;
+    --border-light: #555555;
+    --success: #4ec9b0;
+    --warning: #dcdcaa;
+    --error: #f44747;
+    --purple: #c586c0;
+    --orange: #ce9178;
+    --font-family: 'Segoe UI', 'Adobe Clean', Arial, sans-serif;
+    --font-size: 12px;
+    --radius: 4px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    font-size: var(--font-size);
+    line-height: 1.5;
+    overflow-x: hidden;
+    padding: 12px;
+}
+
+/* === HEADER === */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+}
+
+.header h1 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.header .version {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+/* === SECTIONS === */
+.section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+/* === SEQUENCE INFO === */
+#sequence-info {
+    display: none;
+}
+
+#sequence-info.visible {
+    display: block;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-size: 11px;
+}
+
+.info-label {
+    color: var(--text-secondary);
+}
+
+.info-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* === MAIN AUDIO TRACK === */
+#main-audio-section select {
+    width: 100%;
+    margin-top: 4px;
+}
+
+#main-audio-section label {
+    font-size: 10px;
+    color: var(--text-muted);
+    line-height: 1.4;
+    display: block;
+    margin-bottom: 4px;
+}
+
+/* === MIC-TO-CAMERA MAPPING === */
+#mapping-section {
+    display: none;
+}
+
+#mapping-section.visible {
+    display: block;
+}
+
+.mapping-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mapping-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: var(--bg-primary);
+    border-radius: var(--radius);
+    flex-wrap: wrap;
+}
+
+.mapping-label {
+    flex: 0 0 auto;
+    min-width: 50px;
+    font-size: 11px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mapping-arrow {
+    color: var(--accent);
+    font-size: 12px;
+    flex: 0 0 auto;
+}
+
+.mapping-row select {
+    flex: 1;
+    max-width: 130px;
+}
+
+/* Wide shot % sub-row within mapping row */
+.mapping-wide-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding-top: 4px;
+}
+
+.mapping-wide-row label {
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.mapping-wide-row input[type="range"] {
+    flex: 1;
+    height: 3px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    outline: none;
+}
+
+.mapping-wide-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--warning);
+    cursor: pointer;
+}
+
+.mapping-wide-value {
+    font-size: 10px;
+    color: var(--warning);
+    min-width: 30px;
+    text-align: right;
+    font-weight: 500;
+}
+
+/* Mapping row delete button */
+.mapping-delete {
+    color: var(--error);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 0 2px;
+    line-height: 1;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+    flex: 0 0 auto;
+}
+
+.mapping-delete:hover {
+    opacity: 1;
+}
+
+/* Add mapping row (dashed border, transparent bg) */
+.mapping-add-row {
+    background: transparent;
+    border: 1px dashed var(--border);
+}
+
+.mapping-add-row select {
+    max-width: none;
+}
+
+/* Add mapping button (+) */
+.mapping-add-btn {
+    color: var(--success);
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 0 4px;
+    line-height: 1;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.mapping-add-btn:hover {
+    opacity: 1;
+}
+
+/* === SETTINGS === */
+.settings-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.setting-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.setting-item label {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.setting-item .setting-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.setting-item input[type="range"] {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    outline: none;
+}
+
+.setting-item input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+
+.setting-value {
+    font-size: 11px;
+    color: var(--accent);
+    min-width: 45px;
+    text-align: right;
+    font-weight: 500;
+}
+
+/* === ADVANCED SETTINGS TOGGLE === */
+.advanced-toggle {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.15s;
+}
+
+.advanced-toggle:hover {
+    color: var(--accent);
+}
+
+#advanced-arrow {
+    font-size: 10px;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+#advanced-arrow.open {
+    transform: rotate(90deg);
+}
+
+/* === SEQUENCE PROTECTION === */
+.protection-section {
+    padding: 8px 10px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+/* === SILENCE SETTINGS === */
+.silence-settings {
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+/* === FORM ELEMENTS === */
+select, input[type="number"] {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 6px;
+    font-size: 11px;
+    font-family: var(--font-family);
+    outline: none;
+}
+
+select:focus, input[type="number"]:focus {
+    border-color: var(--accent);
+}
+
+select:hover, input[type="number"]:hover {
+    border-color: var(--border-light);
+}
+
+/* === BUTTONS === */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-family);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    outline: none;
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: #ffffff;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+.btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--bg-hover);
+}
+
+.btn-danger {
+    background: var(--error);
+    color: #ffffff;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: #ff5555;
+}
+
+.btn-full {
+    width: 100%;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.action-row {
+    display: flex;
+    gap: 6px;
+}
+
+.action-row .btn {
+    flex: 1;
+}
+
+/* === PROGRESS BAR === */
+.progress-container {
+    display: none;
+    margin-bottom: 10px;
+}
+
+.progress-container.visible {
+    display: block;
+}
+
+.progress-bar-wrapper {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    height: 20px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-dark), var(--accent));
+    border-radius: var(--radius);
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 10px;
+    font-weight: 600;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* === CUT PREVIEW TABLE === */
+#preview-section {
+    display: none;
+}
+
+#preview-section.visible {
+    display: block;
+}
+
+.preview-stats {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    font-size: 11px;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+}
+
+.stat-value {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.preview-table-wrapper {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+.preview-table th {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-align: left;
+    padding: 5px 8px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.preview-table td {
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.preview-table tr:hover {
+    background: var(--bg-tertiary);
+}
+
+.preview-table .cut-delete {
+    color: var(--error);
+    cursor: pointer;
+    font-size: 14px;
+    text-align: center;
+}
+
+.preview-table .cut-delete:hover {
+    color: #ff5555;
+}
+
+/* Cut reason colors */
+.reason-initial { color: var(--text-muted); }
+.reason-speaker-switch { color: var(--success); }
+.reason-monologue-variation { color: var(--purple); }
+.reason-overlap-wide { color: var(--warning); }
+.reason-overlap-dominant { color: var(--orange); }
+
+/* Legacy reasons (kept for backwards compat) */
+.reason-solo { color: var(--success); }
+.reason-wide { color: var(--warning); }
+.reason-silence { color: var(--text-muted); }
+
+/* === STATUS LOG === */
+.status-log {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 8px;
+    max-height: 120px;
+    overflow-y: auto;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 10px;
+    line-height: 1.6;
+}
+
+.log-entry {
+    color: var(--text-secondary);
+}
+
+.log-entry.info { color: var(--text-primary); }
+.log-entry.success { color: var(--success); }
+.log-entry.warning { color: var(--warning); }
+.log-entry.error { color: var(--error); }
+
+/* === SCROLLBAR === */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-light);
+}
+
+/* === TOOLTIP === */
+.tooltip {
+    position: relative;
+}
+
+.tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #000;
+    color: #fff;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.tooltip:hover::after {
+    opacity: 1;
+}

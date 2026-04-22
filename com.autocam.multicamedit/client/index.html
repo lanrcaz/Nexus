@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Multi-Cam Edit</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>Auto Multi-Cam Edit</h1>
+        <span class="version">v2.0.0</span>
+    </div>
+
+    <!-- Scan Button -->
+    <div class="action-buttons">
+        <button id="btn-scan" class="btn btn-primary btn-full" onclick="scanSequence()">
+            Scan Active Sequence
+        </button>
+    </div>
+
+    <!-- Sequence Info -->
+    <div id="sequence-info" class="section">
+        <div class="section-title">Sequence Info</div>
+        <div class="info-row">
+            <span class="info-label">Name:</span>
+            <span id="seq-name" class="info-value">--</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Frame Rate:</span>
+            <span id="seq-fps" class="info-value">--</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Video Tracks:</span>
+            <span id="seq-vtracks" class="info-value">--</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Audio Tracks:</span>
+            <span id="seq-atracks" class="info-value">--</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Duration:</span>
+            <span id="seq-duration" class="info-value">--</span>
+        </div>
+    </div>
+
+    <!-- Main Audio Track Selection -->
+    <div id="main-audio-section" class="section" style="display:none;">
+        <div class="section-title">Main Audio Track (Final Mix)</div>
+        <div class="setting-item">
+            <label>Select the sound engineer's master audio track. This track will NOT be analyzed and will play as the final audio output.</label>
+            <select id="main-audio-track" onchange="onMainAudioChanged()">
+                <option value="-1">None (all tracks are camera mics)</option>
+                <!-- Dynamically populated after scan -->
+            </select>
+        </div>
+    </div>
+
+    <!-- Mic-to-Camera Mapping (with Wide Shot %) -->
+    <div id="mapping-section" class="section">
+        <div class="section-title">Mic-to-Camera Mapping</div>
+        <div id="mapping-grid" class="mapping-grid">
+            <!-- Dynamically populated, each row: Audio Track -> Primary Camera + Wide % slider -->
+        </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="section">
+        <div class="section-title">Settings</div>
+        <div class="settings-grid">
+            <!-- Noise Floor Offset (replaces old threshold) -->
+            <div class="setting-item">
+                <label>Noise Floor Offset (dB above ambient)</label>
+                <div class="setting-row">
+                    <input type="range" id="noise-floor-offset" min="6" max="24" value="12" step="1"
+                           oninput="updateSettingDisplay('noise-floor-offset', this.value + ' dB')">
+                    <span id="noise-floor-offset-value" class="setting-value">12 dB</span>
+                </div>
+            </div>
+
+            <!-- Min Shot Duration (replaces old hold duration) -->
+            <div class="setting-item">
+                <label>Min Shot Duration (seconds)</label>
+                <div class="setting-row">
+                    <input type="range" id="min-shot-duration" min="1.0" max="3.0" value="1.8" step="0.1"
+                           oninput="updateSettingDisplay('min-shot-duration', this.value + 's')">
+                    <span id="min-shot-duration-value" class="setting-value">1.8s</span>
+                </div>
+            </div>
+
+            <!-- Reaction Cutaway Duration -->
+            <div class="setting-item">
+                <label>Reaction Cutaway Duration (seconds)</label>
+                <div class="setting-row">
+                    <input type="range" id="cutaway-duration" min="0.3" max="2.0" value="0.75" step="0.05"
+                           oninput="updateSettingDisplay('cutaway-duration', this.value + 's')">
+                    <span id="cutaway-duration-value" class="setting-value">0.75s</span>
+                </div>
+            </div>
+
+            <!-- Pre-roll Frames (unchanged) -->
+            <div class="setting-item">
+                <label>Pre-roll (frames before cut)</label>
+                <div class="setting-row">
+                    <input type="range" id="preroll" min="0" max="15" value="5" step="1"
+                           oninput="updateSettingDisplay('preroll', this.value + ' frames')">
+                    <span id="preroll-value" class="setting-value">5 frames</span>
+                </div>
+            </div>
+
+            <!-- Wide Shot Track (unchanged) -->
+            <div class="setting-item">
+                <label>Wide Shot Camera Track</label>
+                <select id="wide-shot-track">
+                    <option value="-1">None (disable wide shot)</option>
+                    <!-- Dynamically populated after scan -->
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Settings (collapsible) -->
+    <div class="section">
+        <div class="section-title advanced-toggle" id="advanced-toggle" onclick="toggleAdvancedSettings()">
+            Advanced Settings <span id="advanced-arrow">&#9656;</span>
+        </div>
+        <div id="advanced-settings" class="settings-grid" style="display:none;">
+            <!-- Monologue Threshold -->
+            <div class="setting-item">
+                <label>Monologue Break Threshold (seconds)</label>
+                <div class="setting-row">
+                    <input type="range" id="monologue-threshold" min="5" max="30" value="10" step="1"
+                           oninput="updateSettingDisplay('monologue-threshold', this.value + 's')">
+                    <span id="monologue-threshold-value" class="setting-value">10s</span>
+                </div>
+            </div>
+
+            <!-- Overlap RMS Difference -->
+            <div class="setting-item">
+                <label>Overlap RMS Difference (%)</label>
+                <div class="setting-row">
+                    <input type="range" id="overlap-rms-diff" min="10" max="50" value="20" step="5"
+                           oninput="updateSettingDisplay('overlap-rms-diff', this.value + '%')">
+                    <span id="overlap-rms-diff-value" class="setting-value">20%</span>
+                </div>
+            </div>
+
+            <!-- Speech Start Threshold -->
+            <div class="setting-item">
+                <label>Speech Start Sensitivity (ms)</label>
+                <div class="setting-row">
+                    <input type="range" id="speech-start-ms" min="50" max="300" value="120" step="10"
+                           oninput="updateSettingDisplay('speech-start-ms', this.value + 'ms')">
+                    <span id="speech-start-ms-value" class="setting-value">120ms</span>
+                </div>
+            </div>
+
+            <!-- Speech End Threshold -->
+            <div class="setting-item">
+                <label>Speech End Gap (ms)</label>
+                <div class="setting-row">
+                    <input type="range" id="speech-end-ms" min="100" max="500" value="200" step="10"
+                           oninput="updateSettingDisplay('speech-end-ms', this.value + 'ms')">
+                    <span id="speech-end-ms-value" class="setting-value">200ms</span>
+                </div>
+            </div>
+
+            <!-- Memory Strictness -->
+            <div class="setting-item">
+                <label>Camera Memory Strictness</label>
+                <div class="setting-row">
+                    <input type="range" id="memory-strictness" min="0.1" max="0.8" value="0.3" step="0.05"
+                           oninput="updateSettingDisplay('memory-strictness', (this.value * 100).toFixed(0) + '%')">
+                    <span id="memory-strictness-value" class="setting-value">30%</span>
+                </div>
+            </div>
+
+            <!-- Spike Sensitivity -->
+            <div class="setting-item">
+                <label>Emotional Spike Sensitivity (dB jump)</label>
+                <div class="setting-row">
+                    <input type="range" id="spike-threshold" min="10" max="40" value="25" step="1"
+                           oninput="updateSettingDisplay('spike-threshold', this.value + ' dB')">
+                    <span id="spike-threshold-value" class="setting-value">25 dB</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sequence Protection -->
+    <div class="section protection-section">
+        <label class="checkbox-label">
+            <input type="checkbox" id="protect-sequence" checked>
+            <span>Protect original sequence (duplicate before editing)</span>
+        </label>
+    </div>
+
+    <!-- Analyze & Apply Buttons -->
+    <div class="action-buttons">
+        <button id="btn-analyze" class="btn btn-primary btn-full" onclick="analyzeAudio()" disabled>
+            Analyze Audio
+        </button>
+        <div class="action-row">
+            <button id="btn-preview" class="btn btn-secondary" onclick="showPreview()" disabled>
+                Preview Cuts
+            </button>
+            <button id="btn-apply" class="btn btn-primary" onclick="applyCuts()" disabled>
+                Apply Cuts to Timeline
+            </button>
+        </div>
+        <div class="action-row">
+            <button id="btn-silence" class="btn btn-secondary btn-full" onclick="removeSilence()" disabled>
+                Remove Silence Gaps
+            </button>
+        </div>
+        <!-- Min gap duration for silence removal -->
+        <div class="silence-settings" id="silence-settings" style="display:none;">
+            <div class="setting-item">
+                <label>Min gap to remove (seconds)</label>
+                <div class="setting-row">
+                    <input type="range" id="min-silence-gap" min="0.5" max="3.0" value="1.5" step="0.1"
+                           oninput="updateSettingDisplay('min-silence-gap', this.value + 's')">
+                    <span id="min-silence-gap-value" class="setting-value">1.5s</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div id="progress-container" class="progress-container">
+        <div class="progress-bar-wrapper">
+            <div id="progress-fill" class="progress-bar-fill"></div>
+            <span id="progress-text" class="progress-text">0%</span>
+        </div>
+    </div>
+
+    <!-- Cut Preview Table -->
+    <div id="preview-section" class="section">
+        <div class="section-title">Cut Preview</div>
+        <div class="preview-stats">
+            <span class="stat-item">
+                <span class="stat-label">Total: </span>
+                <span id="stat-cuts" class="stat-value">0</span>
+            </span>
+            <span class="stat-item">
+                <span class="stat-label">Switches: </span>
+                <span id="stat-switches" class="stat-value">0</span>
+            </span>
+            <span class="stat-item">
+                <span class="stat-label">Monologue: </span>
+                <span id="stat-monologue" class="stat-value">0</span>
+            </span>
+            <span class="stat-item">
+                <span class="stat-label">Overlap: </span>
+                <span id="stat-overlap" class="stat-value">0</span>
+            </span>
+            <span class="stat-item">
+                <span class="stat-label">Cutaway: </span>
+                <span id="stat-cutaway" class="stat-value">0</span>
+            </span>
+            <span class="stat-item">
+                <span class="stat-label">Wide: </span>
+                <span id="stat-wide" class="stat-value">0</span>
+            </span>
+        </div>
+        <div class="preview-table-wrapper">
+            <table class="preview-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Timecode</th>
+                        <th>Camera</th>
+                        <th>Reason</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="preview-tbody">
+                    <!-- Dynamically populated -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Status Log -->
+    <div class="section">
+        <div class="section-title">Status Log</div>
+        <div id="status-log" class="status-log">
+            <div class="log-entry info">Ready. Open a sequence and click "Scan Active Sequence" to begin.</div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/CSInterface.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
